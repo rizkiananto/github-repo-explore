@@ -1,0 +1,1 @@
+export const USERS_TOTAL_LIMIT = 5;
