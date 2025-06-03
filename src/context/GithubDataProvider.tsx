@@ -1,22 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect, useCallback, createContext } from 'react';
 import { USERS_TOTAL_LIMIT } from '../constants/config';
-import { charactersList } from '../data/mockData';
-
-export interface IUser {
-  id: number;
-  login: string;
-  avatar_url: string;
-  repo_list?: IRepository[];
-}
-
-export interface IRepository {
-  title: string,
-  description: string,
-  language: string,
-  forks_count: number,
-  git_url: string,
-}
+import { type IUser, type IRepository } from '../types';
 
 interface IGithubContextType {
   searchInput: string;
@@ -25,25 +9,30 @@ interface IGithubContextType {
   repos: IRepository[];
   loadingUsers: boolean;
   loadingRepos: boolean;
+  onTyping: boolean;
   error: string;
+  totalCount: number;
   setSearchInput: (username: string) => void
   searchUsers: (value: string) => Promise<void>;
   setUsers: React.Dispatch<React.SetStateAction<IUser[]>>;
   selectUser: (user: IUser | null) => Promise<void>;
   setLoadingUsers: (load: boolean) => void;
   setLoadingRepos: (load: boolean) => void;
+  setOnTyping: (typing: boolean) => void;
   clearSearch: () => void; 
 }
 
-const GitUsersContext = createContext<IGithubContextType | null>(null);
+const GithubDataContext = createContext<IGithubContextType | null>(null);
 
-function GitUserProvider({children}: {children: React.ReactNode}) {
+function GithubDataProvider({children}: {children: React.ReactNode}) {
   const [searchInput, setSearchInput] = useState("");
   const [users, setUsers] = useState<IUser[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [user, setUser] = useState<IUser | null>(null);
   const [repos, setRepos] = useState<IRepository[]>([]);
   const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
   const [loadingRepos, setLoadingRepos] = useState<boolean>(false);
+  const [onTyping, setOnTyping] = useState<boolean>(false);
   const [error, setError] = useState("");
 
   const defaultEmptiedState = () => {
@@ -51,47 +40,57 @@ function GitUserProvider({children}: {children: React.ReactNode}) {
     setUsers([]);
     setRepos([]);
     setError('');
+    setOnTyping(false);
+    setLoadingRepos(false);
+    setLoadingUsers(false);
+    setTotalCount(0);
     return;
+  }
+
+  const handleSearchInput = (username:string) => {
+    setOnTyping(true);
+    setSearchInput(username);
   }
 
   const searchUsers = useCallback(async (name: string) => {
     if (!name) return;
     defaultEmptiedState();
+    setOnTyping(false);
     setLoadingUsers(true);
-    
-    setTimeout(() => {
-      const filteredUsers: IUser[] = charactersList.map((user: IUser) => ({
-        id: user.id,
-        login: user.login,
-        avatar_url: user.avatar_url,
-        repo_list: [],
-      }))
-      setUsers(filteredUsers);
-      setLoadingUsers(false);
-    }, 500)
-    
-    // try {
-    //   const response = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(name)}&per_page=${USERS_TOTAL_LIMIT}`);
-    //   if (!response.ok) {
-    //     throw new Error("Search Failed");
-    //   };
-    //   const responseData = await response.json();
-
-    //   if (responseData.items.length === 0) {
-    //     setError("No github account with that username")
-    //   } else {
-    //     const filteredUsers: IUser[] = responseData.items.map((user: IUser) => ({
-    //       id: user.id,
-    //       login: user.login,
-    //       avatar_url: user.avatar_url,
-    //     }))
-    //     setUsers(filteredUsers);
-    //   }
-    // } catch (error) {
-    //   console.log(error);
-    // } finally {
+    // setTimeout(() => {
+    //   const filteredUsers: IUser[] = charactersList.map((user: IUser) => ({
+    //     id: user.id,
+    //     login: user.login,
+    //     avatar_url: user.avatar_url,
+    //     repo_list: [],
+    //   }))
+    //   setUsers(filteredUsers);
     //   setLoadingUsers(false);
-    // }
+    // }, 500)
+    
+    try {
+      const response = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(name)}&per_page=${USERS_TOTAL_LIMIT}`);
+      if (!response.ok) {
+        throw new Error("Search Failed");
+      };
+      const responseData = await response.json();
+      
+      if (responseData.items.length === 0) {
+        setError("No github account with that username")
+      } else {
+        setTotalCount(responseData.total_count);
+        const filteredUsers: IUser[] = responseData.items.map((user: IUser) => ({
+          id: user.id,
+          login: user.login,
+          avatar_url: user.avatar_url,
+        }))
+        setUsers(filteredUsers);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoadingUsers(false);
+    }
   }, [])
 
   useEffect(() => {
@@ -115,25 +114,28 @@ function GitUserProvider({children}: {children: React.ReactNode}) {
   const selectUser = async () => {}
 
   return (
-    <GitUsersContext.Provider value={{
+    <GithubDataContext.Provider value={{
       searchInput,
       users,
       user,
+      totalCount,
       repos,
       loadingUsers,
       loadingRepos,
+      onTyping,
       error,
-      setSearchInput,
+      setSearchInput: handleSearchInput,
       searchUsers,
       setUsers,
       selectUser,
       setLoadingUsers,
       setLoadingRepos,
+      setOnTyping,
       clearSearch 
     }}>
       {children}
-    </GitUsersContext.Provider>
+    </GithubDataContext.Provider>
   )
 }
 
-export {GitUserProvider, GitUsersContext};
+export {GithubDataContext, GithubDataProvider};
