@@ -38,7 +38,7 @@ describe('GithubDataProvider', () => {
     
     act(() => {
       result.current?.setSearchInput(TEST_DATA.USERNAME);
-      result.current?.setUsers([{ id: 1, login: 'test', avatar_url: 'url' }]);
+      result.current?.setUsers([{ id: 1, login: 'test', avatar_url: 'url', html_url: 'url' }]);
     });
     
     act(() => {
