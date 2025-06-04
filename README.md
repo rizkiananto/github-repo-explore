@@ -1,12 +1,14 @@
 <h3 align="center">
   <br>
-    <a href="https://rizkianto-github-explore.netlify.app"><img src="https://github.com/user-attachments/assets/b77d8e5b-d051-4ba9-a1ae-e9510273229d" alt="gqpf" width="700"></a>
+    <a target="_blank" href="https://rizkianto-github-explore.netlify.app"><img src="https://github.com/user-attachments/assets/b77d8e5b-d051-4ba9-a1ae-e9510273229d" alt="gqpf" width="700"></a>
   <br><br>
   Simple and Clean GitHub Explorer Web App
 </h3>
 <p align="center">
   A fast, responsive React application for discovering GitHub users and exploring their public repositories. Built with modern React patterns, TypeScript, and comprehensive testing.
 </p>
+<br>
+<a href="https://rizkianto-github-explore.netlify.app" target="_blank"><p align="center">[Demo Website]</p></a>
 <br>
 <p align="center">
   <img width="773" alt="Screenshot 2025-06-04 at 12 37 48" src="https://github.com/user-attachments/assets/62e56c5a-f9f2-4740-ab9a-a4af2b305930" />
@@ -88,7 +90,7 @@ pnpm test:ui
 ## 🎯 Usage
 
 ### Search for Users
-1. Type any GitHub username in the search box. Please use GitHub's username format (alphanumeric characters and hyphens "-" only).
+1. Type any GitHub username in the search box. Please use GitHub's username format (alphanumeric characters and hyphens (`-`) only).
 2. Results appear automatically after 1 second after you stop typing
 3. Results are limited to 5 per username search.
 4. The total number of users matching your search is displayed below the input box, letting you know if there are more results than shown.
@@ -107,13 +109,13 @@ pnpm test:ui
 ## 💡 Tech Improvement Notes
 If the project is developed further and gains more features, the following improvements could be considered:
 - Create API abstraction. When you need to call the API numerous times, an API abstraction will be helpful to maintain consistent fetching and standardize responses.
-- Use .env files instead of constant/* folders. If you plan to go to production and have multiple variables that will be called in various files, using .env is a better approach.
+- Use `.env` files instead of `src/constants/*` folders. If you plan to go to production and have multiple variables that will be called in various files, using `.env` is a better approach.
 - Add a personal access token when making requests to the GitHub REST API. Unauthenticated requests are limited to 60 per hour, while authenticated requests are granted 5000 per hour.
 
-<br><br>
+<br>
 
-## 📞 Contact
+## Contact Me
 
 - **GitHub**: [@rizkiananto](https://github.com/rizkiananto)
 - **Email**: akbarrizkianto@gmail.com
-- **LinkedIn**: [akbarrizki]([https://linkedin.com/in/yourprofile](https://www.linkedin.com/in/akbarrizki/))
+- **LinkedIn**: [akbarrizki](https://www.linkedin.com/in/akbarrizki/)
