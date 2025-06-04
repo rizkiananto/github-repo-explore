@@ -1,16 +1,18 @@
 import { useContext } from 'react';
 import { GithubDataContext } from '../../context/GithubDataProvider';
-import { Input, CloseButton } from '@mantine/core';
+import { Input, CloseButton, Text } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
+import { LABELS } from '../../constants';
 
 export default function InputText() {
   const ctx = useContext(GithubDataContext);
-  
+  console.log(ctx?.errorInput)
   return (
     <>
       {ctx &&
+      <>
       <Input
-        placeholder="Type any Github Username.."
+        placeholder={LABELS.INPUT_PLACEHOLDER}
         value={ctx.searchInput}
         onChange={(event) => 
           ctx.setSearchInput(event.currentTarget.value)
@@ -26,12 +28,14 @@ export default function InputText() {
         }
         rightSection={
           <CloseButton
-            aria-label="Clear input now"
+            aria-label={LABELS.CLEAR_BUTTON_ARIA}
             onClick={() => ctx.clearSearch()}
             style={{ display: ctx.searchInput ? undefined : 'none' }}
           />
         }
       />
+      {ctx.errorInput && <Text fz={"xs"} c={"red"} ta={"left"} ms={"10"} mt={"10"}>only alphanumeric and "-" is allowed</Text>}
+      </>
       }
     </>
   );

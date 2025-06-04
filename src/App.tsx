@@ -8,6 +8,7 @@ import { GithubDataProvider } from './context/GithubDataProvider';
 import Layout from './components/layout';
 import Header from './components/section/header';
 import CountMessage from './components/section/countMessage';
+import { Toaster } from 'react-hot-toast';
 
 const theme = createTheme({
   fontFamily: 'Verdana, sans-serif',
@@ -26,6 +27,7 @@ function App() {
             <CountMessage/>
             <Space h="xl" />
             <AccordionList/>
+            <Toaster/>
           </Layout>
         </GithubDataProvider>
       </MantineProvider>

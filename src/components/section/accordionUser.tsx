@@ -1,11 +1,14 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
-import { Group, Avatar, Text, Accordion, Space } from '@mantine/core';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Group, Avatar, Text, Accordion, Space, Anchor } from '@mantine/core';
 import Loading from '../loader';
 import { GithubDataContext } from '../../context/GithubDataProvider';
 import { type IUser, type IRepository } from '../../types';
 import RepoDetail from './repoCard';
 import classes from './accordionUser.module.css';
-import { IconNotesOff } from '@tabler/icons-react';
+import { IconNotesOff, IconExternalLink } from '@tabler/icons-react';
+import { LABELS } from '../../constants';
+import { API_URL } from '../../constants/api';
+import toast from 'react-hot-toast';
 
 interface AccordionLabelProps {
   label: string;
@@ -30,73 +33,109 @@ function AccordionLabel({ label, image, description }: AccordionLabelProps) {
 export default function AccordionList() {
   const ctx = useContext(GithubDataContext);
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [loadingRepos, setLoadingRepos] = useState<boolean>(true);
+  const abortController = useRef<AbortController | null>(null);
 
-  const fetchRepo = useCallback(async (userSelected: IUser) => {
-    ctx?.setLoadingRepos(true);
-
+  const fetchRepo = async (userSelected: IUser, signal?: AbortSignal) => {
+    setLoadingRepos(true);
     try {
-      const response = await fetch(`https://api.github.com/users/${userSelected?.login}/repos`);
+      const response = await fetch(
+        `${API_URL}users/${userSelected?.login}/repos`,
+        {signal}
+      );
+      if (signal?.aborted) {
+        // repository fetch was cancelled
+        console.log('Repository fetch was cancelled');
+        return;
+      }
       if (!response.ok) {
+        toast.error("Error when fetching User Repository from Git API")
         throw new Error("Search Failed");
       };
+      if (signal?.aborted) {
+        console.log('Repository fetch was cancelled after response');
+        return;
+      }
       const responseData = await response.json();
 
-      if (responseData.length === 0) {
-        // ctx?.setError("No github account with that username")
-        console.log("No repo found");
-      } else {
-        ctx?.setUsers(prevUsers => (
-          prevUsers.map(user => 
-            user.login === userSelected.login
-            ? { 
-                ...user,
-                repo_list: responseData.map((repo: IRepository) => ({
-                  node_id: repo.node_id,
-                  name: repo.name,
-                  description: repo.description,
-                  language: repo.language,
-                  html_url: repo.html_url,
-                  forks_count: repo.forks_count,
-                  stargazers_count: repo.stargazers_count,
-                  watchers_count: repo.watchers_count
-                }))
-              }
-            : user
-          )
-        ));
-      }
+      ctx?.setUsers(prevUsers => (
+        prevUsers.map(user => 
+          user.login === userSelected.login
+          ? { 
+              ...user,
+              repo_list: responseData.length === 0 ? [] : responseData.map((repo: IRepository) => ({
+                node_id: repo.node_id,
+                name: repo.name,
+                description: repo.description,
+                language: repo.language,
+                html_url: repo.html_url,
+                forks_count: repo.forks_count,
+                stargazers_count: repo.stargazers_count,
+                watchers_count: repo.watchers_count
+              }))
+            }
+          : user
+        )
+      ));
     } catch (error) {
-      console.log(error);
+      toast.error("Network Error");
+      console.error(error);
     } finally {
-      ctx?.setLoadingRepos(false);
+      setLoadingRepos(false);
     }
-  }, [ctx])
+  }
 
   useEffect(() => {
     if (activeTab) {
       const userSelected = ctx?.users.find((user) => user.login === activeTab);
-      if (userSelected) {
-        ctx?.selectUser(userSelected);
-        fetchRepo(userSelected);
+      if (userSelected && !userSelected.repo_list) {
+        const newAbortController = new AbortController();
+        abortController.current = newAbortController;
+        
+        fetchRepo(userSelected, newAbortController.signal);
       }
+    }
+
+    return () => {
+      if (abortController.current) abortController.current.abort();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
-  const AccordionDetails = ({repos}: {repos: IRepository[]}) => {
+  useEffect(() => {
+    return () => {
+      if (abortController.current) {
+        abortController.current.abort();
+      }
+    };
+  }, []);
+
+  const AccordionDetails = ({repos, profile_link}: {repos: IRepository[], profile_link: string}) => {
     return (
       <div style={{marginTop: '15px'}}>
-        {ctx?.loadingRepos ?
-        <div 
-          style={{
-            padding: '',
-          }}
-          >
+        {loadingRepos ?
+        <div>
           <Loading/>
-          <Text size="xs" mt={2}>Getting Repo list...</Text>
+          <Text size="xs" mt={2}>{LABELS.ACTION_LOADING_REPO}</Text>
         </div>
         :
         <>
+          <Group align='center' justify='center' gap={3} mb={15}>
+            <Anchor
+              variant="gradient"
+              gradient={{ from: 'pink', to: 'red' }}
+              fw={600}
+              fz="xs"
+              style={{ textDecoration: 'none' }}
+              href={profile_link}
+              target='_blank'
+              >
+              <Group gap={3} align="center">
+                Check Full Profile on Github
+                <IconExternalLink size={14} color='red' stroke={3}/>
+              </Group>
+            </Anchor>
+          </Group>
           {repos?.length !== 0 ? repos?.map((repo) => {
             return ( 
               <div key={repo.node_id}>
@@ -112,7 +151,7 @@ export default function AccordionList() {
                 <Space h={'md'}/>
               </div>
             )
-          }) : <Text size='xs' my={30} fs={"italic"}>no public repositories owned by this user</Text>}
+          }) : <Text size='xs' my={30} fs={"italic"}>{LABELS.ACTION_NO_REPO_RESULT}</Text>}
         </>
         }
       </div>
@@ -123,11 +162,11 @@ export default function AccordionList() {
     return (
       <>
         <Space h="xl"/>
-        {!ctx?.searchInput && <Text c={"gray"} size='xs'>Just type anything to start and let the search begin ✨</Text>}
+        {!ctx?.searchInput && <Text c={"gray"} size='xs'>{LABELS.ACTION_INITIAL}</Text>}
         {ctx?.searchInput && ctx.users.length === 0 && 
           <Group justify='center' align='center' gap={5}>
             <IconNotesOff size={20} color='red'/>
-            <Text c={"red"} size='xs'>Couldn't find anyone by that name</Text>
+            <Text c={"red"} size='xs'>{LABELS.ACTION_NO_RESULT}</Text>
           </Group>
         }
       </>
@@ -135,6 +174,9 @@ export default function AccordionList() {
   }
 
   const handleAccordionChange = useCallback((value: string | null) => {
+    if (abortController.current) {
+      abortController.current.abort();
+    }
     setActiveTab(value);
   }, []);
 
@@ -146,12 +188,16 @@ export default function AccordionList() {
           key="user-accordion"
           styles={{
             root: {boxShadow: 'rgba(100, 100, 111, 0.2) 0px 7px 29px 0px'},
+            content: {
+              transition: 'all 500ms ease'
+            }
           }}
           classNames={classes}
           chevronPosition="right"
           variant="contained"
           value={activeTab}
           onChange={handleAccordionChange}
+          transitionDuration={500}
           >
           {items}
         </Accordion>
@@ -163,15 +209,16 @@ export default function AccordionList() {
   }
 
   const items = ctx?.users.map((item) => (
-    <Accordion.Item key={item.login} value={item.login}>
-      <Accordion.Control>
-        <AccordionLabel label={item.login} image={item.avatar_url} description={''} {...item} />
-      </Accordion.Control>
-      <Accordion.Panel>
-        <AccordionDetails repos={item.repo_list || []}/>
-      </Accordion.Panel>
-    </Accordion.Item>
-  ));
+      <Accordion.Item key={item.login} value={item.login}>
+        <Accordion.Control>
+          <AccordionLabel label={item.login} image={item.avatar_url} description={''} {...item} />
+        </Accordion.Control>
+        <Accordion.Panel>
+          <AccordionDetails repos={item.repo_list || []} profile_link={item.html_url}/>
+        </Accordion.Panel>
+      </Accordion.Item>
+    )
+  );
 
   return (
     <>
@@ -179,8 +226,8 @@ export default function AccordionList() {
       <Loading/> 
       :
       <>
-        {ctx.onTyping ? 
-          <Text size='xs' c={"gray"}>we will automatically start searching after you stop typing... 🚀</Text>
+        {ctx.onTyping ? !ctx.errorInput ?
+          <Text size='xs' c={"gray"}>{LABELS.ACTION_TYPING}</Text> : null
           :
           <ListUsers/>
         }

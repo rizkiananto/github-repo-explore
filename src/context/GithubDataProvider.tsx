@@ -1,21 +1,23 @@
-import React, { useState, useEffect, useCallback, createContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useRef } from 'react';
 import { USERS_TOTAL_LIMIT } from '../constants/config';
-import { type IUser, type IRepository } from '../types';
+import { type IUser } from '../types';
+import { API_URL } from '../constants/api';
+import toast from 'react-hot-toast';
+import { validateUsername } from '../utils/validation';
+import { LABELS } from '../constants';
 
 interface IGithubContextType {
   searchInput: string;
   users: IUser[];
-  user: IUser | null;
-  repos: IRepository[];
   loadingUsers: boolean;
   loadingRepos: boolean;
   onTyping: boolean;
   error: string;
+  errorInput: string;
   totalCount: number;
   setSearchInput: (username: string) => void
   searchUsers: (value: string) => Promise<void>;
   setUsers: React.Dispatch<React.SetStateAction<IUser[]>>;
-  selectUser: (user: IUser | null) => Promise<void>;
   setLoadingUsers: (load: boolean) => void;
   setLoadingRepos: (load: boolean) => void;
   setOnTyping: (typing: boolean) => void;
@@ -28,18 +30,19 @@ function GithubDataProvider({children}: {children: React.ReactNode}) {
   const [searchInput, setSearchInput] = useState("");
   const [users, setUsers] = useState<IUser[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [user, setUser] = useState<IUser | null>(null);
-  const [repos, setRepos] = useState<IRepository[]>([]);
   const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
   const [loadingRepos, setLoadingRepos] = useState<boolean>(false);
   const [onTyping, setOnTyping] = useState<boolean>(false);
   const [error, setError] = useState("");
+  const [errorInput, setErrorInput] = useState("");
+
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const defaultEmptiedState = () => {
-    setUser(null);
     setUsers([]);
-    setRepos([]);
     setError('');
+    setErrorInput('');
     setOnTyping(false);
     setLoadingRepos(false);
     setLoadingUsers(false);
@@ -52,27 +55,32 @@ function GithubDataProvider({children}: {children: React.ReactNode}) {
     setSearchInput(username);
   }
 
-  const searchUsers = useCallback(async (name: string) => {
+  const searchUsers = useCallback(async (name: string, signal?: AbortSignal) => {
     if (!name) return;
+    const isValid = validateUsername(name);
+    if (!isValid) {
+      setErrorInput(LABELS.INPUT_INVALID);
+      return;
+    }
     defaultEmptiedState();
     setOnTyping(false);
     setLoadingUsers(true);
-    // setTimeout(() => {
-    //   const filteredUsers: IUser[] = charactersList.map((user: IUser) => ({
-    //     id: user.id,
-    //     login: user.login,
-    //     avatar_url: user.avatar_url,
-    //     repo_list: [],
-    //   }))
-    //   setUsers(filteredUsers);
-    //   setLoadingUsers(false);
-    // }, 500)
     
     try {
-      const response = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(name)}&per_page=${USERS_TOTAL_LIMIT}`);
+      const response = await fetch(
+        `${API_URL}search/users?q=${encodeURIComponent(name)}+in:login&per_page=${USERS_TOTAL_LIMIT}`,
+        {signal}
+      );
+
+      if (signal?.aborted) {
+        console.log('Search request was cancelled');
+        return;
+      }
+
       if (!response.ok) {
         throw new Error("Search Failed");
       };
+      
       const responseData = await response.json();
       
       if (responseData.items.length === 0) {
@@ -83,27 +91,48 @@ function GithubDataProvider({children}: {children: React.ReactNode}) {
           id: user.id,
           login: user.login,
           avatar_url: user.avatar_url,
+          html_url: user.html_url
         }))
         setUsers(filteredUsers);
       }
     } catch (error) {
-      console.log(error);
+      toast.error("Error when fetching User from Git API")
+      console.error(error)
     } finally {
       setLoadingUsers(false);
     }
   }, [])
 
   useEffect(() => {
+    setErrorInput('');
     const trimmedInput = searchInput.trim();
+    // cleanup
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    searchAbortControllerRef.current = abortController;
+
     if (!trimmedInput) {
       defaultEmptiedState();
     }
 
-    const timeOutSearch = setTimeout(() => {
-      searchUsers(trimmedInput)
+    searchTimeoutRef.current = setTimeout(() => {
+      if (!abortController.signal.aborted) {
+        searchUsers(trimmedInput, abortController.signal)
+      }
     }, 1000);
 
-    return () => clearTimeout(timeOutSearch);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      abortController.abort();
+    }
   }, [searchInput, searchUsers])
 
   const clearSearch = ():void => {
@@ -111,23 +140,19 @@ function GithubDataProvider({children}: {children: React.ReactNode}) {
     defaultEmptiedState();
   }
 
-  const selectUser = async () => {}
-
   return (
     <GithubDataContext.Provider value={{
       searchInput,
       users,
-      user,
       totalCount,
-      repos,
       loadingUsers,
       loadingRepos,
       onTyping,
       error,
+      errorInput,
       setSearchInput: handleSearchInput,
       searchUsers,
       setUsers,
-      selectUser,
       setLoadingUsers,
       setLoadingRepos,
       setOnTyping,
