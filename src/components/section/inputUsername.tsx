@@ -6,7 +6,6 @@ import { LABELS } from '../../constants';
 
 export default function InputText() {
   const ctx = useContext(GithubDataContext);
-  console.log(ctx?.errorInput)
   return (
     <>
       {ctx &&

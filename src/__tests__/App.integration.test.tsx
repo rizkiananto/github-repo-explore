@@ -4,7 +4,6 @@ import App from '../App';
 import { TEST_DATA, LABELS } from '../constants';
 import { createMockRepo, getClearButton, getHelpText, getSearchInput } from '../test/test-helpers';
 
-// Mock fetch responses
 const mockUserSearchResponse = {
   items: [
     {
@@ -60,7 +59,6 @@ describe("App integration test", () => {
       expect(screen.getByText(TEST_DATA.USERNAME)).toBeInTheDocument();
     }, { timeout: 2000 });
 
-    // 🎯 BETTER: Test the important parts without exact URL matching
     expect(fetch).toHaveBeenCalledTimes(1);
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     const url = fetchCall[0] as string;
@@ -133,18 +131,14 @@ describe("App integration test", () => {
     
     const input = getSearchInput() as HTMLInputElement;
     
-    // Type something
     fireEvent.change(input, { target: { value: TEST_DATA.USERNAME } });
     expect(input.value).toBe(TEST_DATA.USERNAME);
     
-    // Click clear button
     const clearButton = getClearButton();
     fireEvent.click(clearButton);
     
-    // Input should be cleared
     expect(input.value).toBe('');
     
-    // Help text should appear again
     expect(screen.getByText(LABELS.ACTION_INITIAL)).toBeInTheDocument();
   });
 })

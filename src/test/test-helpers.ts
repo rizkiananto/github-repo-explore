@@ -15,7 +15,6 @@ export const typeInSearchInput = (value: string) => {
   return { input, value };
 };
 
-// Mock data generators
 export const createMockUser = (overrides = {}) => ({
   id: 1,
   login: TEST_DATA.USERNAME,

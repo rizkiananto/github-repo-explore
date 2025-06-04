@@ -44,7 +44,6 @@ export default function AccordionList() {
         {signal}
       );
       if (signal?.aborted) {
-        // repository fetch was cancelled
         console.log('Repository fetch was cancelled');
         return;
       }
